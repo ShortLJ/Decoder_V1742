@@ -36,10 +36,7 @@ void KeyboardCommand(int pqrjd_flag[5]){
 //////////////////////main function////////////////////////////////
 
 void allnewdecoder_fasttrig(){
-	//char filename[90]="PMT_set3_12ch_Eu152_run01";
-	char filename[90]="PMT_set3_12ch_Co60_run03_PMB";
-	//char filename[90]="PMT_set1_12ch_Eu152_run01_efftest";
-	//char filename[90]="PMT_set2_12ch_Eu152_run01_efftest";
+	char filename[90]="PMT_dy_set1_8ch_Co60_run01";
 	FILE* datafile = fopen(Form("%s.dat",filename),"rb");	// moved from latter to here
 	if(datafile==NULL){
 		fputs("File error\n",stderr);
@@ -48,7 +45,7 @@ void allnewdecoder_fasttrig(){
 
 //tree
 	const UInt_t NOpGr = 2;	// number of open groups
-	const UInt_t NOpCh = 6;	// number of open channels
+	const UInt_t NOpCh = 8;	// number of open channels
 	const UInt_t waveform_length = 1024;
 	const Float_t samplingrate = 2.5;  // GS/s
 	const Float_t sampletime = 1.0/samplingrate;  // ns
@@ -71,7 +68,6 @@ void allnewdecoder_fasttrig(){
 	//UInt_t BoardID=0;
 	UInt_t NHitCh = NOpCh*NOpGr;	//number of hit channels, maximum NOpCh*NOpGr
 	UInt_t StartIndexCell[NHitCh];
-	//UInt_t Group;
 	UInt_t Group[NHitCh];
 	UInt_t Channel[NHitCh];
 	UInt_t EventNumber;
@@ -169,7 +165,7 @@ void allnewdecoder_fasttrig(){
 		if(EndByte-CurrByte>=sample_byte){
 			fread_flag=1;
 			Nheader=(int)fread(header, 4, 6, datafile);
-			pulseBuffer = new Pulse1024(header);	leakage++;
+			pulseBuffer = new Pulse1024(header, header[3]%2);	leakage++;
 			Nwaveform=(int) fread(pulseBuffer->waveform, 4, waveform_length, datafile);
 			//Nwaveform=(int) fread(waveformBuffer, 4, waveform_length, datafile);
 			//printf("EventSize %u, Group %u, StartIndexCellch %u, Channel %u, EventNumberch %u, TrigTimeTagch %u \n ", header[0],header[1],header[2],header[3],header[4],header[5]);
@@ -236,7 +232,7 @@ void allnewdecoder_fasttrig(){
 			}
 			for (int i=0; i<NHitCh; i++){
 				if(rPH[i]>3850) continue;
-				if(QDC[i]< 1000) continue;
+				if(QDC[i]<5000) continue;
 				h1_primary[Group[i]]->rPH[Channel[i]]->Fill(rPH[i]);
 				h1_primary[Group[i]]->QDC[Channel[i]]->Fill(QDC[i]);
 				h1_primary[Group[i]]->TDC[Channel[i]]->Fill(TDC[i]);

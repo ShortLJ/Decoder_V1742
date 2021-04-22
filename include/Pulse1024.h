@@ -20,6 +20,7 @@ class Pulse1024{
 	public:
 		UInt_t EventSize, Group, StartIndexCell, Channel, EventNumber, TrigTimeTag;
 		//UInt_t EventSize, BoardID, StartIndexCell, Channel, EventNumber, TrigTimeTag;
+		char polarity;	// 0: negative, 1: positive
 		float waveform[1024];
 		float pedestal, rPH, QDC, TDC;
 
@@ -33,7 +34,7 @@ class Pulse1024{
 		void Waveform_Ext(float arrdest[1024]);
 		float FastTrig_Analyze(float sampling_rate, float voltage_l=1024, float voltage_t=2048 );
 
-		Pulse1024(UInt_t _header[6]){
+		Pulse1024(UInt_t _header[6], char _polarity=0){
 		//Pulse1024(UInt_t _header[6], float _waveform[1024]){
 			EventSize=_header[0];
 			Group=_header[1];
@@ -45,6 +46,7 @@ class Pulse1024{
 			//waveformcopyf(waveform,_waveform);
 			analyze_flag = 0x00;
 			//printf("Pulse1024 init, eventnumber %u\n", EventNumber);
+			polarity=_polarity;
 		}
 		~Pulse1024(){
 			//delete f1;
@@ -92,18 +94,27 @@ void Pulse1024::pedestalf(int startidx=0, int endidx=200){
 
 void Pulse1024::rPHf(){
 	if(!ped_flag_check()) return;
-	float ADCmin=4098;
+	float ADCmin=pedestal;
 	int minidx_=0;
 	//printf("EventNumber %u &ADCmin %x \n", EventNumber, &ADCmin);
-	for (int i=0; i<950; i++){
-		if (ADCmin>waveform[i]){
-			ADCmin = waveform[i];
-			minidx_= i;
+	if(polarity){
+		for (int i=0; i<950; i++){
+			if (ADCmin<waveform[i]){
+				ADCmin = waveform[i];
+				minidx_= i;
+			}
 		}
+		rPH = ADCmin-pedestal;
 	}
-	//rPH = pedestal;
-	//rPH = 4096-ADCmin;
-	rPH = pedestal-ADCmin;
+	else{
+		for (int i=0; i<950; i++){
+			if (ADCmin>waveform[i]){
+				ADCmin = waveform[i];
+				minidx_= i;
+			}
+		}
+		rPH = pedestal-ADCmin;
+	}
 	minidx = minidx_;
 	//printf("\nminidx = %d\n", minidx);
 	analyze_flag |= 0x04;
@@ -117,14 +128,23 @@ void Pulse1024::QDCf(int startidx=200, int endidx=950){
 	for (int iwft=startidx; iwft<endidx; iwft++){
 		QDCsum += waveform[iwft];
 	}
-	QDC = (endidx-startidx)*pedestal-QDCsum;
+	if(polarity)	QDC = QDCsum-(endidx-startidx)*pedestal;
+	else 		QDC = (endidx-startidx)*pedestal-QDCsum;
+
 	return;
 }
 
 void Pulse1024::CFDf(Int_t delay, float fraction){
 	if(!ped_flag_check()) return;
-	for (int i=0; i<1024-delay; i++){
-		waveform_cfd[i]= -fraction*(pedestal-waveform[i+delay])+(pedestal-waveform[i]);
+	if(polarity){
+		for (int i=0; i<1024-delay; i++){
+			waveform_cfd[i]= -fraction*(waveform[i+delay]-pedestal)+(waveform[i]-pedestal);
+		}
+	}
+	else{
+		for (int i=0; i<1024-delay; i++){
+			waveform_cfd[i]= -fraction*(pedestal-waveform[i+delay])+(pedestal-waveform[i]);
+		}
 	}
 	for (int i=1024-delay; i<1024; i++){
 		waveform_cfd[i]= -1;
